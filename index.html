@@ -1,0 +1,3173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-modal Adversarial Training for Zero-Shot Voice Cloning</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+            overflow: hidden;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        p {
+            margin: 10px 0;
+        }
+        .authors, .affiliation, .emails, .abstract {
+            margin-bottom: 20px;
+        }
+        .abstract p {
+            text-indent: 20px;
+        }
+        img {
+            display: block;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Multi-modal Adversarial Training for Zero-Shot Voice Cloning</h1>
+    <div class="authors">
+        <strong>Authors:</strong> John Janiczek, Dading Chong, Dongyang Dai, Arlo Faria<sup>1</sup>, Chao Wang, Tao
+        Wang, Yuzong Liu
+    </div>
+    <div class="affiliation">
+        <strong>Affiliation:</strong> Zoom Video Communications, United States of America
+    </div>
+    <div class="emails">
+        <strong>Emails:</strong> john.janiczek@zoom.us, yuzong.liu@zoom.us
+    </div>
+    <div class="abstract">
+        <strong>Abstract:</strong>
+        <p>
+            A text-to-speech (TTS) model trained to reconstruct speech given text tends towards predictions that are
+            close to
+            the average characteristics of a dataset, failing to model the variations that make human speech sound
+            natural.
+            This problem is magnified for zero-shot voice cloning, a task that requires training data with high variance
+            in
+            speaking styles. We build off of recent works which have used Generative Adversarial Networks (GAN) by
+            proposing a
+            Transformer encoder-decoder architecture to conditionally discriminates between real and generated speech
+            features.
+            The discriminator is used in a training pipeline that improves both the acoustic and prosodic features of a
+            TTS
+            model. We introduce our novel adversarial training technique by applying it to a FastSpeech2 acoustic model
+            and
+            training on Libriheavy, a large multi-speaker dataset, for the task of zero-shot voice cloning. Our model
+            achieves
+            improvements over the baseline in terms of speech quality and speaker similarity.
+        </p>
+    </div>
+    <p><sup>1</sup>Now affiliated with Cartesia AI.</p>
+    <h2>System Architecture</h2>
+    <img src="system_architecture.png" alt="System Architecture" width="800">
+    <h3>Demo</h3>
+    <p>
+        To demonstrate our system we have provided 100 synthesized audios from the Libriheavy-R test set (unseen
+        speakers)
+        using the baseline Fastspeech2 model and the proposed Multi-modal Adversarial TTS model. We have also included
+        the
+        ground truth audio and the reference speech for comparison. The reference speech passed to the speaker encoder
+        is a
+        different audio from the same speaker. This is done to better match the zero-shot voice cloning scenario where
+        reference speech that matches the target text is generally not available.
+    </p>
+</div>
+<table width='800px'>
+    <tr>
+        <th>Reference Speech</th>
+        <th>Ground Truth</th>
+        <th>Baseline</th>
+        <th>Proposed Model</th>
+    </tr>
+    <tr>
+        <td style="border-bottom: 3px solid black"><em><strong>Avg NISQA: </strong></em>4.30</td>
+        <td style="border-bottom: 3px solid black">4.26</td>
+        <td style="border-bottom: 3px solid black">3.27</td>
+        <td style="border-bottom: 3px solid black">4.15</td>
+    </tr>
+    <tr>
+        <td style="border-bottom: 3px solid black"><em><strong>Avg Speaker Similarity: </strong></em>1.00</td>
+        <td style="border-bottom: 3px solid black">0.57</td>
+        <td style="border-bottom: 3px solid black">0.48</td>
+        <td style="border-bottom: 3px solid black">0.55</td>
+    </tr>
+    <tr>
+        <td style="border-bottom: 3px solid black"><em><strong>Pitch STD (%): </strong></em>34.00</td>
+        <td style="border-bottom: 3px solid black">35.19</td>
+        <td style="border-bottom: 3px solid black">25.10</td>
+        <td style="border-bottom: 3px solid black">33.55</td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1089_134686_000012_000000</strong>: On the wall of his bedroom hung an illuminated
+            scroll, the certificate of his prefecture in the college of the sodality of the Blessed Virgin Mary.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1089_134686_000012_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1089_134686_000012_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1089_134686_000012_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1089_134686_000012_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1188_133604_000012_000002</strong>: My first and principal reason was that they enforced
+            beyond all resistance, on any student who might attempt to copy them, this method of laying portions of
+            distinct hue side by side.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1188_133604_000012_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1188_133604_000012_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1188_133604_000012_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1188_133604_000012_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>121_121726_000007_000003</strong>: Painful to hear.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/121_121726_000007_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/121_121726_000007_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/121_121726_000007_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/121_121726_000007_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>121_127105_000013_000000</strong>: "Oh, how delicious!" cried one of the women.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/121_127105_000013_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/121_127105_000013_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/121_127105_000013_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/121_127105_000013_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>121_127105_000016_000008</strong>: I adjured him to write by the first post and to agree
+            with us for an early hearing; then I asked him if the experience in question had been his own.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/121_127105_000016_000008.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/121_127105_000016_000008.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/121_127105_000016_000008.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/121_127105_000016_000008.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1320_122612_000048_000002</strong>: Can you see where he has put his rifle or his bow?"
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1320_122612_000048_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1320_122612_000048_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1320_122612_000048_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1320_122612_000048_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1320_122617_000027_000002</strong>: But the bear, instead of obeying, maintained the
+            seat it had taken, and growled:
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1320_122617_000027_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1320_122617_000027_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1320_122617_000027_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1320_122617_000027_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1580_141083_000008_000005</strong>: I was absent rather more than an hour.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1580_141083_000008_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1580_141083_000008_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1580_141083_000008_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1580_141083_000008_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1580_141083_000016_000000</strong>: "Bannister was very much upset by the incident.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1580_141083_000016_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1580_141083_000016_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1580_141083_000016_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1580_141083_000016_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1580_141083_000018_000001</strong>: I have a new writing table with a fine surface of
+            red leather.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1580_141083_000018_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1580_141083_000018_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1580_141083_000018_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1580_141083_000018_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1580_141083_000041_000005</strong>: Holmes halted and looked earnestly at the window.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1580_141083_000041_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1580_141083_000041_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1580_141083_000041_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1580_141083_000041_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1580_141083_000076_000000</strong>: "Yes."</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1580_141083_000076_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1580_141083_000076_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1580_141083_000076_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1580_141083_000076_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1580_141083_000117_000000</strong>: "Whom do you suspect?"</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1580_141083_000117_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1580_141083_000117_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1580_141083_000117_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1580_141083_000117_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1580_141084_000006_000000</strong>: It was the Indian, whose dark silhouette appeared
+            suddenly upon his blind.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1580_141084_000006_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1580_141084_000006_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1580_141084_000006_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1580_141084_000006_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1580_141084_000019_000001</strong>: The Indian still paced his room.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1580_141084_000019_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1580_141084_000019_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1580_141084_000019_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1580_141084_000019_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1995_1826_000016_000000</strong>: "What's the mere color of a human soul's skin," she
+            had cried to a Wellesley audience and the audience had applauded with enthusiasm.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1995_1826_000016_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1995_1826_000016_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1995_1826_000016_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1995_1826_000016_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1995_1836_000004_000003</strong>: Why should he not be as other men?</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1995_1836_000004_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1995_1836_000004_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1995_1836_000004_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1995_1836_000004_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1995_1836_000009_000000</strong>: mr Cresswell inclined his head courteously.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1995_1836_000009_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1995_1836_000009_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1995_1836_000009_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1995_1836_000009_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>1995_1837_000011_000001</strong>: Bles rushed to the edge of the swamp and stood there
+            irresolute.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/1995_1837_000011_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/1995_1837_000011_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/1995_1837_000011_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/1995_1837_000011_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>2300_131720_000002_000003</strong>: There Messrs. Johnson and Hammer put into practice
+            many of the ideas now standard in the art, and secured much useful data for the work in New York, of which
+            the story has just been told.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/2300_131720_000002_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/2300_131720_000002_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/2300_131720_000002_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/2300_131720_000002_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>2300_131720_000005_000002</strong>: For some years it was not found feasible to operate
+            motors on alternating current circuits, and that reason was often urged against it seriously.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/2300_131720_000005_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/2300_131720_000005_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/2300_131720_000005_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/2300_131720_000005_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>2300_131720_000016_000014</strong>: But the plant ran, and it was the first three wire
+            station in this country."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/2300_131720_000016_000014.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/2300_131720_000016_000014.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/2300_131720_000016_000014.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/2300_131720_000016_000014.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>2300_131720_000035_000004</strong>: The ladies thanked me effusively and brought their
+            visit to a close.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/2300_131720_000035_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/2300_131720_000035_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/2300_131720_000035_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/2300_131720_000035_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>237_126133_000002_000003</strong>: At night, when no one knew it, the tears would come
+            racing over the poor, forlorn little face, and would not be squeezed back.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/237_126133_000002_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/237_126133_000002_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/237_126133_000002_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/237_126133_000002_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>237_126133_000009_000000</strong>: "My son," said his mamma, "just stop and think how
+            badly you would feel, if you really couldn't see Percy."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/237_126133_000009_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/237_126133_000009_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/237_126133_000009_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/237_126133_000009_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>237_134493_000017_000014</strong>: You must dance with all the French girls.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/237_134493_000017_000014.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/237_134493_000017_000014.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/237_134493_000017_000014.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/237_134493_000017_000014.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>237_134493_000021_000002</strong>: A stranger, approaching it, could not help noticing
+            the beauty and fruitfulness of the outlying fields.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/237_134493_000021_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/237_134493_000021_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/237_134493_000021_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/237_134493_000021_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>237_134500_000005_000000</strong>: "Don't let me disturb you, Emil.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/237_134500_000005_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/237_134500_000005_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/237_134500_000005_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/237_134500_000005_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>260_123286_000006_000002</strong>: And yet, what cause was there for anger?</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/260_123286_000006_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/260_123286_000006_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/260_123286_000006_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/260_123286_000006_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>260_123286_000012_000001</strong>: I am not complaining that the rate is slow, but that
+            the sea is so wide."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/260_123286_000012_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/260_123286_000012_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/260_123286_000012_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/260_123286_000012_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>260_123286_000048_000002</strong>: The remainder of the sea monsters have disappeared.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/260_123286_000048_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/260_123286_000048_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/260_123286_000048_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/260_123286_000048_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>2830_3979_000023_000000</strong>: Glory to God in the highest, And on earth peace, Good
+            will to men.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/2830_3979_000023_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/2830_3979_000023_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/2830_3979_000023_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/2830_3979_000023_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>2830_3980_000017_000000</strong>: When men claiming such credentials come along, they
+            deceive not only the naive, but also those who seemingly are well established in the faith. This same
+            argument is used by the papacy.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/2830_3980_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/2830_3980_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/2830_3980_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/2830_3980_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>2830_3980_000106_000004</strong>: He puts on white to make himself look like an angel of
+            light.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/2830_3980_000106_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/2830_3980_000106_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/2830_3980_000106_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/2830_3980_000106_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>2961_961_000004_000008</strong>: The subject was a very noble one; he described the most
+            famous action in which the Athenian people were ever engaged.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/2961_961_000004_000008.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/2961_961_000004_000008.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/2961_961_000004_000008.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/2961_961_000004_000008.wav' type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>3570_5694_000010_000001</strong>: He is no longer simply the successful, aggressive
+            male,--the man of strength, resource, and intrepidity.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/3570_5694_000010_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/3570_5694_000010_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/3570_5694_000010_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/3570_5694_000010_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>3570_5694_000010_000004</strong>: This cultivation of aesthetic faculty requires time
+            and application, and the demands made upon the gentleman in this direction therefore tend to change his life
+            of leisure into a more or less arduous application to the business of learning how to live a life of
+            ostensible leisure in a becoming way.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/3570_5694_000010_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/3570_5694_000010_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/3570_5694_000010_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/3570_5694_000010_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>3570_5695_000008_000002</strong>: The result is that, in order to keep up a decent
+            appearance, the former habitually live hand to mouth to a greater extent than the latter.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/3570_5695_000008_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/3570_5695_000008_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/3570_5695_000008_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/3570_5695_000008_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>3729_6852_000004_000003</strong>: In order to please her, I spoke to her of the Abbe
+            Conti, and I had occasion to quote two lines of that profound writer.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/3729_6852_000004_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/3729_6852_000004_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/3729_6852_000004_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/3729_6852_000004_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4077_13754_000002_000001</strong>: Then, in their hasty departure, the soldiers disposed
+            of everything outside of actual necessities in the way of accouterment and camp equipage.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4077_13754_000002_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4077_13754_000002_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4077_13754_000002_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4077_13754_000002_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4446_2271_000003_000003</strong>: But Hilda Burgoyne's the hit of the piece. Hugh's
+            written a delightful part for her, and she's quite inexpressible. It's been on only two weeks, and I've been
+            half a dozen times already. I happen to have MacConnell's box for tonight or there'd be no chance of our
+            getting places.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4446_2271_000003_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4446_2271_000003_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4446_2271_000003_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4446_2271_000003_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4446_2271_000017_000000</strong>: Mainhall cut in impatiently.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4446_2271_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4446_2271_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4446_2271_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4446_2271_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4446_2273_000011_000003</strong>: He painted that group of cypresses for the Salon, and
+            it was bought for the Luxembourg."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4446_2273_000011_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4446_2273_000011_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4446_2273_000011_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4446_2273_000011_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4446_2273_000023_000001</strong>: "Oh, yes, I go over to Paris often.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4446_2273_000023_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4446_2273_000023_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4446_2273_000023_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4446_2273_000023_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4446_2273_000027_000002</strong>: Too bad!</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4446_2273_000027_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4446_2273_000027_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4446_2273_000027_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4446_2273_000027_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4446_2273_000034_000001</strong>: What a strong brown face she had, and very tragic.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4446_2273_000034_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4446_2273_000034_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4446_2273_000034_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4446_2273_000034_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4446_2275_000021_000002</strong>: "Each life spoils the other.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4446_2275_000021_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4446_2275_000021_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4446_2275_000021_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4446_2275_000021_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4446_2275_000043_000004</strong>: It's getting the better of me.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4446_2275_000043_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4446_2275_000043_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4446_2275_000043_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4446_2275_000043_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4507_16021_000026_000001</strong>: Assuredly, if the tongue which a nation or a province
+            has spoken is worthy of interest, the language which has been spoken by a misery is still more worthy of
+            attention and study.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4507_16021_000026_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4507_16021_000026_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4507_16021_000026_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4507_16021_000026_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4507_16021_000030_000001</strong>: Facts form one of these, and ideas the other.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4507_16021_000030_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4507_16021_000030_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4507_16021_000030_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4507_16021_000030_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4507_16021_000038_000001</strong>: To diminish the number of the shady, to augment the
+            number of the luminous,--that is the object.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4507_16021_000038_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4507_16021_000038_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4507_16021_000038_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4507_16021_000038_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4970_29093_000017_000000</strong>: His pen therefore, and whereas, and not as aforesaid,
+            strayed off into other scribbling.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4970_29093_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4970_29093_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4970_29093_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4970_29093_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4970_29093_000017_000002</strong>: He would make his mark in literature.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4970_29093_000017_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4970_29093_000017_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4970_29093_000017_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4970_29093_000017_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4970_29093_000036_000000</strong>: "Field engineer, civil engineer.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4970_29093_000036_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4970_29093_000036_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4970_29093_000036_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4970_29093_000036_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4970_29093_000049_000001</strong>: He knew his uncle would be glad to hear that he had
+            at last turned his thoughts to a practical matter.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4970_29093_000049_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4970_29093_000049_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4970_29093_000049_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4970_29093_000049_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4970_29095_000032_000001</strong>: "If thee wants to see new bonnets, orthodox to a
+            shade and conformed to the letter of the true form, thee must go to the Arch Street Meeting.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4970_29095_000032_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4970_29095_000032_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4970_29095_000032_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4970_29095_000032_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4992_23283_000047_000001</strong>: They are confused-they are triumphant at present.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4992_23283_000047_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4992_23283_000047_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4992_23283_000047_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4992_23283_000047_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4992_41797_000012_000000</strong>: mr Popham laid down his brush.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4992_41797_000012_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4992_41797_000012_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4992_41797_000012_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4992_41797_000012_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4992_41797_000017_000002</strong>: She makes effort after effort, trembling with
+            eagerness, and when she fails to reproduce what she sees, she works herself into a frenzy of grief and
+            disappointment."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4992_41797_000017_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4992_41797_000017_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4992_41797_000017_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4992_41797_000017_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>4992_41797_000023_000002</strong>: But Nancy Carey, never shy, and as eager to give
+            herself as people always are who are born and bred in joy and love, Nancy hopped out of Mother Carey's warm
+            nest one day, and fixing her bright eyes and sunny, hopeful glance on the lonely, frowning little neighbor,
+            stretched out her hand in friendship.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/4992_41797_000023_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/4992_41797_000023_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/4992_41797_000023_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/4992_41797_000023_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5105_28241_000017_000000</strong>: The lieutenant paused to allow time for reflection,
+            and added: "Moreover, I have every reason to believe that we are not so near the sun as we have been.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5105_28241_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5105_28241_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5105_28241_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5105_28241_000017_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5142_33396_000021_000000</strong>: "'Now for the farm.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5142_33396_000021_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5142_33396_000021_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5142_33396_000021_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5142_33396_000021_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5142_33396_000028_000001</strong>: It was so dark that I could see nothing but a few
+            sparks on the hearth.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5142_33396_000028_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5142_33396_000028_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5142_33396_000028_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5142_33396_000028_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5142_36600_000007_000007</strong>: The races differ also in constitution, in
+            acclimatisation and in liability to certain diseases.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5142_36600_000007_000007.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5142_36600_000007_000007.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5142_36600_000007_000007.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5142_36600_000007_000007.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5142_36600_000010_000001</strong>: All the more stress would be laid on this fact, as it
+            would be an exceptional one; for I am informed by mr Denny that the most different kinds of dogs, fowls, and
+            pigeons, in England, are infested by the same species of Pediculi or lice.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5142_36600_000010_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5142_36600_000010_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5142_36600_000010_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5142_36600_000010_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5639_40744_000012_000003</strong>: For this and other reasons, Rodolfo readily complied
+            with the wishes of his father, who gave him ample letters of credit on Barcelona, Genoa, Rome, and Naples.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5639_40744_000012_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5639_40744_000012_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5639_40744_000012_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5639_40744_000012_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5639_40744_000016_000002</strong>: The bed she too well remembered was there; and, above
+            all, the cabinet, on which had stood the image she had taken away, was still on the same spot.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5639_40744_000016_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5639_40744_000016_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5639_40744_000016_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5639_40744_000016_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5639_40744_000018_000002</strong>: But, as the proverb says, with the disease God sends
+            the remedy.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5639_40744_000018_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5639_40744_000018_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5639_40744_000018_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5639_40744_000018_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5639_40744_000020_000002</strong>: The boy having embraced his mother, calling her his
+            cousin, and his grandmother, calling her his benefactress, repeated his grandfather's question.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5639_40744_000020_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5639_40744_000020_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5639_40744_000020_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5639_40744_000020_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5683_32865_000031_000000</strong>: And Wylder laughed too, more suddenly and noisily
+            than the humour of the joke seemed quite to call for, and glanced a grim look from the corners of his eyes
+            on Lake, but the gallant captain did not seem to perceive it; and after a few seconds more he handed it very
+            innocently back to mrs Dorothy, only remarking-
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5683_32865_000031_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5683_32865_000031_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5683_32865_000031_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5683_32865_000031_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5683_32866_000018_000000</strong>: In the meantime, Miss Lake, with her hand on her
+            brother's arm, was walking swiftly under the trees of the back avenue towards that footpath which, through
+            wild copse and broken clumps near the park, emerges upon the still darker road which passes along the wooded
+            glen by the mills, and skirts the little paling of the recluse lady's garden.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5683_32866_000018_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5683_32866_000018_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5683_32866_000018_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5683_32866_000018_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5683_32879_000046_000000</strong>: 'Thank you, Dorcas, dear.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5683_32879_000046_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5683_32879_000046_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5683_32879_000046_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5683_32879_000046_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>5683_32879_000048_000003</strong>: Will you come, Rachel?'</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/5683_32879_000048_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/5683_32879_000048_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/5683_32879_000048_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/5683_32879_000048_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>6829_68769_000005_000004</strong>: So this boy was doubly foolish in ruining himself to
+            get sixty dollars to pay an unjust demand."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/6829_68769_000005_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/6829_68769_000005_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/6829_68769_000005_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/6829_68769_000005_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>6829_68771_000004_000000</strong>: BETH MEETS A REBUFF</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/6829_68771_000004_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/6829_68771_000004_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/6829_68771_000004_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/6829_68771_000004_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>6829_68771_000012_000005</strong>: The description she gave of the coming reception to
+            the Woman's Political League was so humorous and diverting that they were both laughing heartily over the
+            thing when the young people passed them, and thus mr Hopkins failed to notice who the occupants of the other
+            vehicle were.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/6829_68771_000012_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/6829_68771_000012_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/6829_68771_000012_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/6829_68771_000012_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>6829_68771_000037_000001</strong>: "Why cannot you answer it?"</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/6829_68771_000037_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/6829_68771_000037_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/6829_68771_000037_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/6829_68771_000037_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>6829_68771_000045_000000</strong>: "I wish," said Beth, slowly, "I knew you."</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/6829_68771_000045_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/6829_68771_000045_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/6829_68771_000045_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/6829_68771_000045_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>6930_75918_000038_000000</strong>: "Yes, you are right; but I do not think any danger is
+            to be apprehended from Buckingham."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/6930_75918_000038_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/6930_75918_000038_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/6930_75918_000038_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/6930_75918_000038_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>6930_75918_000039_000000</strong>: "No; still he is intrusive.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/6930_75918_000039_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/6930_75918_000039_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/6930_75918_000039_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/6930_75918_000039_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>7021_79759_000004_000004</strong>: You have made a life-long change, if not in the very
+            structure, at least in the permanent furnishing of her mind, and performed a work that can never by any
+            possibility be undone.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/7021_79759_000004_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/7021_79759_000004_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/7021_79759_000004_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/7021_79759_000004_000004.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>7021_85628_000014_000000</strong>: "Yes, why not?" thought Anders.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/7021_85628_000014_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/7021_85628_000014_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/7021_85628_000014_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/7021_85628_000014_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>7127_75946_000052_000000</strong>: "Here?" replied the king, frowning, "here?</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/7127_75946_000052_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/7127_75946_000052_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/7127_75946_000052_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/7127_75946_000052_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>7127_75946_000052_000001</strong>: Are you sure?"</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/7127_75946_000052_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/7127_75946_000052_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/7127_75946_000052_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/7127_75946_000052_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>7127_75946_000057_000002</strong>: I did not wish to be the substance of so dark a
+            shadow to your majesty's elegance, skill, and graceful invention; and I have left my tenants in order to
+            place my services at your majesty's commands."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/7127_75946_000057_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/7127_75946_000057_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/7127_75946_000057_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/7127_75946_000057_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>7176_88083_000024_000001</strong>: Then he came up among some arrowweeds, lifted his
+            head beneath the shelter of one of the broad barbed leaves, and floated there quivering.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/7176_88083_000024_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/7176_88083_000024_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/7176_88083_000024_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/7176_88083_000024_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>7729_102255_000002_000001</strong>: The bogus Legislature numbered thirty six members.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/7729_102255_000002_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/7729_102255_000002_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/7729_102255_000002_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/7729_102255_000002_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>7729_102255_000020_000006</strong>: He ordered the forces to disband; prisoners were
+            liberated, and with the opportune aid of a furious rain storm the Border Ruffian army gradually melted away.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/7729_102255_000020_000006.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/7729_102255_000020_000006.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/7729_102255_000020_000006.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/7729_102255_000020_000006.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8224_274384_000026_000002</strong>: And though the contributions which they had levied,
+            as well as the price of their living at free quarters, must be deducted, yet still the sum which they
+            insisted on was very considerable.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8224_274384_000026_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8224_274384_000026_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8224_274384_000026_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8224_274384_000026_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8230_279154_000008_000005</strong>: For their mere occurrence, by itself, would not
+            suggest any connection with anything that had happened before.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8230_279154_000008_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8230_279154_000008_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8230_279154_000008_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8230_279154_000008_000005.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8230_279154_000027_000001</strong>: This may be taken in two senses, the first when a
+            thing not merely feels familiar, but we know it is such and such.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8230_279154_000027_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8230_279154_000027_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8230_279154_000027_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8230_279154_000027_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8455_210777_000054_000001</strong>: "It is simply a contest between brute strength and
+            mental energy."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8455_210777_000054_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8455_210777_000054_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8455_210777_000054_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8455_210777_000054_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8455_210777_000061_000003</strong>: Minister of the day thought it expedient to grant
+            their request.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8455_210777_000061_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8455_210777_000061_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8455_210777_000061_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8455_210777_000061_000003.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8463_287645_000013_000000</strong>: "Another case was that of a slave woman in a very
+            delicate state, who was one day knocked down stairs by mrs Johnson herself, and in a few weeks after, the
+            poor woman died from the effects of the injury thus received.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8463_287645_000013_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8463_287645_000013_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8463_287645_000013_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8463_287645_000013_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8463_287645_000024_000001</strong>: I always had it in my mind to leave, but I was
+            'jubus', (dubious?) of starting.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8463_287645_000024_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8463_287645_000024_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8463_287645_000024_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8463_287645_000024_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8463_294828_000020_000000</strong>: For the past ten years, Conseil had gone with me
+            wherever science beckoned.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8463_294828_000020_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8463_294828_000020_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8463_294828_000020_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8463_294828_000020_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8463_294828_000024_000002</strong>: There was good reason to stop and think, even for
+            the world's most emotionless man. What would Conseil say?
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8463_294828_000024_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8463_294828_000024_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8463_294828_000024_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8463_294828_000024_000002.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8463_294828_000052_000000</strong>: "In person.</td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8463_294828_000052_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8463_294828_000052_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8463_294828_000052_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8463_294828_000052_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8555_284449_000038_000001</strong>: The guards had a terrible struggle with the goat,
+            which was loose in the room and still wanted to fight, but finally they subdued the animal and then they
+            took the Boolooroo out of the frame he was tied in and brought both him and the goat before Queen Trot, who
+            awaited them in the throne room of the palace.
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8555_284449_000038_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8555_284449_000038_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8555_284449_000038_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8555_284449_000038_000001.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+    <tr>
+        <td colspan='4'><strong>8555_284449_000061_000000</strong>: "I think it will be best for us to go back to our
+            own country as soon as possible," suggested Rosalie the Witch; "for, if we stay here very long, the
+            Blueskins may rise against us and cause the Pinkies much trouble."
+        </td>
+    </tr>
+    <tr>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/reference_audio/8555_284449_000061_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/ground_truth/8555_284449_000061_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-baseline/8555_284449_000061_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+        <td style='border-bottom: 3px solid black'>
+            <audio controls preload='none'>
+                <source src='audios/libritts_r_test_shuffled_100/gan-v3.1/8555_284449_000061_000000.wav'
+                        type='audio/wav'/>
+            </audio>
+        </td>
+    </tr>
+</table>
+</body>
+</html>
