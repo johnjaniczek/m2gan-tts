@@ -93,13 +93,16 @@
     <h3>Demo</h3>
     <p>
         To demonstrate our system we have provided 100 synthesized audios from the LibriTTS-R test set (unseen
-        speakers)
-        using the baseline Fastspeech2 model and the proposed Multi-modal Adversarial TTS model. We have also included
-        the
-        ground truth audio and the reference speech for comparison. The reference speech passed to the speaker encoder
-        is a
-        different audio from the same speaker. This is done to better match the zero-shot voice cloning scenario where
-        reference speech that matches the target text is generally not available.
+        speakers). Since our focus is on inexpensive and fast systems we use Fastspeech2 as a baseline model (which can
+        synthesize speech much faster than real-time on a CPU). However, the quality of zero-shot voice cloning with
+        FastSpeech2 is quite poor. We improve over the baseline model by proposing a scaled up Transformer
+        discriminator as described in the paper.
+    </p>
+    <p>
+        In addition to providing synthesized audios for the baseline and proposed models we also provide the ground
+        truth audio and the reference audio for comparison. The reference speech (which is passed to the models speaker
+        encoder) is an audio sample of the target speaker saying a different text. This better matches the zero-shot
+        voice cloning scenario where audio of the target speaker saying the target text is generally not available.
     </p>
 
     <div class="center-table">
