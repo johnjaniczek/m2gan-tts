@@ -93,10 +93,12 @@
     <h3>Demo</h3>
     <p>
         To demonstrate our system we have provided 100 synthesized audios from the LibriTTS-R test set (unseen
-        speakers). Since our focus is on inexpensive and fast systems we use Fastspeech2 as a baseline model (which can
-        synthesize speech much faster than real-time on a CPU). However, the quality of zero-shot voice cloning with
-        FastSpeech2 is quite poor. We improve over the baseline model by proposing a scaled up Transformer
-        discriminator as described in the paper.
+        speakers). Since our focus is on light-weight speech synthesis we use FastSpeech2 as a baseline model (which can
+        generate speech much faster than real-time on a CPU). However, the quality of zero-shot voice cloning with
+        FastSpeech2 is quite poor. We improve over the baseline model by adding a scaled up Transformer
+        discriminator which is fully described in the paper. Given that the discriminator is only used during training,
+        the improved FastSpeech2 model runs without any extra inference cost and can generate high quality voice cloning
+        in real-time on a CPU.
     </p>
     <p>
         In addition to providing synthesized audios for the baseline and proposed models we also provide the ground
